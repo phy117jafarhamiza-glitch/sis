@@ -333,12 +333,23 @@ def transfer(src_ws, tgt_bytes, tgt_pwd, tgt_sheet, src_blocks, tgt_blocks, matc
 
 
 # ------------------------------------------------------------------- الواجهة
-def file_panel(title, key, need_data_only):
+def is_sis_file(data, pwd):
+    """ملف SIS يحتوي أعمدة Course ID / Student Academic Status."""
+    try:
+        wb = open_wb(data, pwd, True)
+        ws = wb.worksheets[0]
+        for row in ws.iter_rows(min_row=1, max_row=min(ws.max_row, 14), values_only=True):
+            for v in row:
+                if isinstance(v, str) and ("course id" in v.lower() or "student academic status" in v.lower()):
+                    return True
+    except Exception:
+        pass
+    return False
+
+
+def file_panel(title, key, up, pwd, need_data_only):
     st.subheader(title)
-    up = st.file_uploader("ارفع الملف (xlsx)", type=["xlsx", "xlsm"], key=f"up_{key}")
-    pwd = st.text_input("كلمة سر فتح الملف (إن وجدت)", type="password", key=f"pw_{key}")
-    if not up:
-        return None
+    st.caption(f"الملف: {up.name}")
     data = up.getvalue()
     try:
         wb = open_wb(data, pwd, need_data_only)
@@ -365,7 +376,7 @@ def file_panel(title, key, need_data_only):
     att_opt = st.selectbox("عمود رقم المحاولة (دور أول/ثاني/ثالث)", [NONE_OPT] + opts,
                            index=(a_i + 1) if a_i is not None else 0, key=f"at_{key}_{sheet}")
     return dict(
-        data=data, pwd=pwd, wb=wb, ws=ws, sheet=sheet, first_row=first_row, rows=h_rows,
+        name=up.name, data=data, pwd=pwd, wb=wb, ws=ws, sheet=sheet, first_row=first_row, rows=h_rows,
         labels=labels, opts=opts, name_col=col_index(letter_of(name_opt)),
         att_col=None if att_opt == NONE_OPT else col_index(letter_of(att_opt)),
         id_col=(id_i + 1) if id_i is not None else None,
@@ -379,14 +390,33 @@ if __name__ == "__main__" or True:
         "درجات الأدوار الأول والثاني والثالث والمعدل والنتيجة والملاحظات كما هي، دون تعديل أي خلية أخرى."
     )
 
+    st.markdown("#### ارفع الملفين (بأي ترتيب) — يتعرف البرنامج تلقائياً على ملف SIS")
+    u1, u2 = st.columns(2)
+    f1 = u1.file_uploader("الملف الأول (xlsx)", type=["xlsx", "xlsm"], key="up_a")
+    p1 = u1.text_input("كلمة سر الفتح (إن وجدت)", type="password", key="pw_a")
+    f2 = u2.file_uploader("الملف الثاني (xlsx)", type=["xlsx", "xlsm"], key="up_b")
+    p2 = u2.text_input("كلمة سر الفتح (إن وجدت)", type="password", key="pw_b")
+    if not (f1 and f2):
+        st.info("ارفع الملفين للمتابعة.")
+        st.stop()
+
+    s1, s2 = is_sis_file(f1.getvalue(), p1), is_sis_file(f2.getvalue(), p2)
+    if s1 and not s2:
+        (f_src, p_src), (f_tgt, p_tgt) = (f2, p2), (f1, p1)
+    elif s2 and not s1:
+        (f_src, p_src), (f_tgt, p_tgt) = (f1, p1), (f2, p2)
+    else:
+        (f_src, p_src), (f_tgt, p_tgt) = (f1, p1), (f2, p2)
+        st.warning("لم أستطع تحديد ملف SIS تلقائياً، افترضت أن الأول ملف اللجنة والثاني ملف SIS.")
+    st.success(f"ملف اللجنة (مصدر الدرجات): {f_src.name}   |   ملف SIS (يُعدَّل ويُنزَّل): {f_tgt.name}")
+
     left, right = st.columns(2)
     with left:
-        src = file_panel("1) ملف الدرجات (ماستر شيت اللجنة الامتحانية)", "src", True)
+        src = file_panel("1) ملف الدرجات (ماستر شيت اللجنة الامتحانية)", "src", f_src, p_src, True)
     with right:
-        tgt = file_panel("2) ملف SIS الذي سيستلم الدرجات", "tgt", False)
+        tgt = file_panel("2) ملف SIS الذي سيستلم الدرجات", "tgt", f_tgt, p_tgt, False)
 
     if not (src and tgt):
-        st.info("ارفع الملفين للمتابعة.")
         st.stop()
 
     skip_t = {tgt["name_col"]} | ({tgt["att_col"]} if tgt["att_col"] else set()) | ({tgt["id_col"]} if tgt["id_col"] else set())
@@ -450,7 +480,7 @@ if __name__ == "__main__" or True:
 
     st.success(f"تمت مطابقة {len(matches)} طالب من {len(tgt_blocks)} في SIS، وكُتبت {written} قيمة.")
     st.download_button(
-        "⬇️ تحميل ملف SIS بعد نقل الدرجات", data=out_bytes, file_name="SIS_with_grades.xlsx",
+        "⬇️ تحميل ملف SIS (بنفس شكله مع الدرجات المنقولة)", data=out_bytes, file_name="SIS_" + tgt["name"],
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type="primary",
     )
 
