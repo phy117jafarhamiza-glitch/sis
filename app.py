@@ -333,6 +333,25 @@ def transfer(src_ws, tgt_bytes, tgt_pwd, tgt_sheet, src_blocks, tgt_blocks, matc
 
 
 # ------------------------------------------------------------------- الواجهة
+
+DEV_NAME = "م. جعفر حمزة كاظم"
+DEV_PHONE = "07716970700"
+DEV_EMAIL = "jaafauu@gmail.com"
+
+
+def developer_box():
+    st.markdown(
+        f"""
+        <div style="direction:rtl;text-align:center;margin-top:2.5rem;padding:14px 10px;
+                    border-top:1px solid rgba(128,128,128,.35);font-size:.95rem;line-height:1.9">
+            <b>المطوّر: {DEV_NAME}</b><br>
+            📞 رقم الهاتف: <span dir="ltr">{DEV_PHONE}</span><br>
+            ✉️ الإيميل: <a href="mailto:{DEV_EMAIL}">{DEV_EMAIL}</a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 def is_sis_file(data, pwd):
     """ملف SIS يحتوي أعمدة Course ID / Student Academic Status."""
     try:
@@ -384,6 +403,11 @@ def file_panel(title, key, up, pwd, need_data_only):
 
 
 if __name__ == "__main__" or True:
+    with st.sidebar:
+        st.markdown("### 👨‍💻 معلومات المطوّر")
+        st.write(f"**{DEV_NAME}**")
+        st.write(f"📞 {DEV_PHONE}")
+        st.write(f"✉️ {DEV_EMAIL}")
     st.title("📊 نقل الدرجات من ماستر شيت اللجنة الامتحانية إلى ماستر شيت SIS")
     st.caption(
         "يطابق البرنامج الطلبة بالاسم (حتى لو كان الاسم مختصراً أو بإملاء مختلف قليلاً) ثم ينقل "
@@ -398,6 +422,7 @@ if __name__ == "__main__" or True:
     p2 = u2.text_input("كلمة سر الفتح (إن وجدت)", type="password", key="pw_b")
     if not (f1 and f2):
         st.info("ارفع الملفين للمتابعة.")
+        developer_box()
         st.stop()
 
     s1, s2 = is_sis_file(f1.getvalue(), p1), is_sis_file(f2.getvalue(), p2)
@@ -417,6 +442,7 @@ if __name__ == "__main__" or True:
         tgt = file_panel("2) ملف SIS الذي سيستلم الدرجات", "tgt", f_tgt, p_tgt, False)
 
     if not (src and tgt):
+        developer_box()
         st.stop()
 
     skip_t = {tgt["name_col"]} | ({tgt["att_col"]} if tgt["att_col"] else set()) | ({tgt["id_col"]} if tgt["id_col"] else set())
@@ -459,6 +485,7 @@ if __name__ == "__main__" or True:
     round_digits = None if rd == "بدون تقريب" else int(rd)
 
     if not st.button("🚀 نقل الدرجات", type="primary"):
+        developer_box()
         st.stop()
 
     src_blocks = student_blocks(src["ws"], src["first_row"], src["name_col"], src["att_col"])
@@ -498,3 +525,5 @@ if __name__ == "__main__" or True:
     if un_s:
         with st.expander(f"طلبة في ملف الدرجات لم يُنقلوا ({len(un_s)})"):
             st.write("، ".join(map(str, un_s)))
+
+    developer_box()
